@@ -18,6 +18,7 @@ r_0 = 0.0
 r_end = a
 dr = 0.002
 
+zeros = 100
 #######################################
 ########## Set up the arrays ##########
 #######################################
@@ -27,7 +28,10 @@ t = [0]*t_steps
 r_steps = int((r_end - r_0)/dr + 1)
 r = [0]*r_steps
 
-uAna = [0]*r_steps    
+Y = [0]*zeros
+uAna = [0]*r_steps  
+
+Y = scipy.special.jn_zeros(1, zeros)
 uBD2 = np.zeros([r_steps, t_steps])
 A = np.identity(r_steps)
 RHS = np.zeros([r_steps,1])
@@ -36,11 +40,11 @@ RHS = np.zeros([r_steps,1])
 ########## Initial Conditions ##########
 ########################################
 t[0] = t_0
-for n in range(1, t_steps - 1):  
+for n in range(0, t_steps - 1):  
     t[n+1] = t[n] + dt
 
 r[0] = r_0
-for n in range(1, r_steps - 1):  
+for n in range(0, r_steps - 1):  
     r[n+1] = r[n] + dr
 
 for i in range(0, r_steps - 1): 
@@ -62,7 +66,7 @@ for i in range(1, r_steps - 1):
     A[i,i] = 1.0 + (2.0*alpha*dt)/((dr**2))
 
     ############################################
-    ########## Fills the sub-diagonal ##########
+    ########## Fills the sub-diagonal ##########    
     ############################################
     if (i > 0):
         A[i, i-1] = -((alpha*dt) / (dr**2)) + ((alpha*dt) / (2.0*dr*r[i])) 
@@ -76,15 +80,15 @@ for i in range(1, r_steps - 1):
 #####################################
 ########## Sets up the RHS ##########
 #####################################
-uBD2[0, 1] = uBD2[1, 1] - b*dr
-uBD2[r_steps - 1, 1] = uBD2[r_steps - 2, 1] + a*dr
+uBD2[0, 1] = uBD2[1, 1]
+uBD2[r_steps - 1, 1] = uBD2[r_steps - 2, 1] + b*dr
 
-for i in range(1, x_steps - 1):
+for i in range(1, r_steps - 1): ###### Needs Changed ######
         uBD2[i, 1] = uBD2[i, 0] + ((alpha * dt)/ dx**2) * (uBD2[i+1, 0] - (2.0*uBD2[i, 0]) + uBD2[i-1, 0])
         
-for n in range(0, t_steps - 1):
-    RHS[0] = b * dx
-    RHS[x_steps - 1] = a * dx
+for n in range(1, t_steps - 1):
+    RHS[0] = 0.0
+    RHS[r_steps - 1] = b*dr
 
     for i in range(1, r_steps - 1):
         RHS[i] = uBD2[i, n]
@@ -97,28 +101,29 @@ for n in range(0, t_steps - 1):
 def ana(rf, tf):
     summation = 0.0
 
-    for m in range(1, 10000):
-        summation = summation + (((-a*l*2.0 * ((-1)**m))/(math.pi**2 * m**2)) +
-            ((b*l*2.0)/(math.pi**2 * m**2))) * math.exp(-t[tf]*((m**2 * (math.pi)**2)/l**2)*alpha) * math.cos((m*(math.pi)*xf)/l)
-    return ((a-b)/(2.0*l))*(xf**2) + b*xf + ((alpha*(a-b))/l)*t[tf] -(((a+2*b)*l)/6.0) + summation
+    for m in range(0, zeros): 
+        summation = summation + ((2.0*a*b/(Y[m]**2)*(scipy.special.jv(2, Y[m])/(scipy.special.jv(0, Y[m])**2)))*
+            math.exp((-alpha*(Y[m]**2)*tf/(a**2))*scipy.special.jv(0, (Y[m]*rf/a)))
+   
+   return (b*(rf**2)/2.0*a) - (b*a/4.0) + summation
 
-for i in range(0, x_steps):
-    uAna[i] = ana(x[i], t_steps-1)
+for i in range(0, r_steps):
+    uAna[i] = ana(r[i], t[t_steps-1])
 
 #######################################
 ########## Creates the plots ##########
 #######################################
 plt.title('BD2 and Analytical', fontsize = 20)
-plt.plot(x, uBD2[:, t_steps - 1], linewidth = 3, color = 'green', label = 'BD2')
-plt.plot(x, uAna, linewidth = 3, color = 'blue', label = 'Analytical')
-plt.xlabel('x', fontsize = 12)
+plt.plot(r, uBD2[:, t_steps - 1], linewidth = 3, color = 'green', label = 'BD2')
+plt.plot(r, uAna, linewidth = 3, color = 'blue', label = 'Analytical')
+plt.xlabel('r', fontsize = 12)
 plt.ylabel('BD2 and Analytical', fontsize = 12)
 plt.legend(loc = 4)
 plt.show()
 
 plt.title('BD2 and Analytical Difference', fontsize = 20)
-plt.plot(x,abs(uBD2[:,t_steps-1] - uAna),linewidth = 3,color = 'green')
-plt.xlabel('x', fontsize = 12)
+plt.plot(r,abs(uBD2[:,t_steps-1] - uAna),linewidth = 3,color = 'green')
+plt.xlabel('r', fontsize = 12)
 plt.ylabel('|BD2 - Analytical|', fontsize = 12)
 plt.show()
 
